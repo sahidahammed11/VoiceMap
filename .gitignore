@@ -1,0 +1,8 @@
+# Secrets — never commit
+.env
+
+# Netlify local dev cache
+.netlify/
+
+# Node
+node_modules/

@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VoiceMap — AI Emergency Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   CSS VARIABLES & RESET
+═══════════════════════════════════════════ */
+:root {
+  --void:    #020810;
+  --deep:    #040f1e;
+  --surface: #071828;
+  --panel:   #0a2038;
+  --border:  #0e3060;
+  --cyan:    #00e5ff;
+  --red:     #ff1a2e;
+  --amber:   #ff8c00;
+  --green:   #00ff88;
+  --white:   #e0f0ff;
+  --muted:   #3a6080;
+  --dim:     #152840;
+  --purple:  #9b59ff;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-ui:      'Rajdhani', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; min-height: 100vh;
+  overflow-x: hidden;
+  background: var(--void);
+  color: var(--white);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── BACKGROUND GRID + SCANLINES ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px);
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* ── SCREEN SYSTEM ── */
+.screen {
+  display: none;
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  opacity: 0; transform: translateY(18px);
+  transition: opacity 0.38s ease, transform 0.38s ease;
+}
+.screen.active {
+  display: block; opacity: 1; transform: translateY(0);
+  animation: screenIn 0.38s ease forwards;
+}
+@keyframes screenIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════
+   SCREEN 1: HOME / SPLASH
+═══════════════════════════════════════════ */
+#s1 {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 100vh;
+  padding: 2rem 1.5rem 3rem;
+  text-align: center; position: relative; overflow: hidden;
+}
+.radar-bg {
+  position: absolute; inset: 0; z-index: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.radar-ring {
+  position: absolute; border-radius: 50%;
+  border: 1px solid rgba(0,229,255,0.07);
+}
+.radar-ring:nth-child(1) { width: 140px; height: 140px; }
+.radar-ring:nth-child(2) { width: 280px; height: 280px; }
+.radar-ring:nth-child(3) { width: 420px; height: 420px; }
+.radar-ring:nth-child(4) { width: 580px; height: 580px; }
+.radar-ring:nth-child(5) { width: 760px; height: 760px; }
+.radar-sweep {
+  position: absolute; width: 380px; height: 380px;
+  border-radius: 50%;
+  background: conic-gradient(rgba(0,229,255,0.12) 0deg, rgba(0,229,255,0.04) 40deg, transparent 80deg, transparent 360deg);
+  animation: radarSpin 5s linear infinite;
+}
+@keyframes radarSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.s1-content { position: relative; z-index: 2; }
+.logo-ring {
+  width: 110px; height: 110px; border-radius: 50%;
+  border: 2px solid var(--red);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.5rem;
+  box-shadow: 0 0 30px rgba(255,26,46,0.35), 0 0 60px rgba(255,26,46,0.12);
+  animation: breathe 3s ease-in-out infinite; position: relative;
+}
+.logo-ring::before {
+  content: ''; position: absolute; inset: -6px; border-radius: 50%;
+  border: 1px solid rgba(255,26,46,0.25);
+  animation: breathe 3s ease-in-out infinite 0.5s;
+}
+.logo-ring::after {
+  content: ''; position: absolute; inset: -14px; border-radius: 50%;
+  border: 1px solid rgba(255,26,46,0.1);
+  animation: breathe 3s ease-in-out infinite 1s;
+}
+.logo-icon { font-size: 2.6rem; line-height: 1; }
+@keyframes breathe {
+  0%,100% { transform: scale(1); opacity: 0.75; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+.s1-title {
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 14vw, 7rem);
+  line-height: 0.9; letter-spacing: 0.08em;
+  color: var(--white);
+  text-shadow: 0 0 40px rgba(0,229,255,0.3), 0 0 80px rgba(0,229,255,0.1);
+  margin-bottom: 0.3rem;
+}
+.s1-sub {
+  font-family: var(--font-mono);
+  font-size: clamp(0.6rem, 2.5vw, 0.85rem);
+  letter-spacing: 0.22em; color: var(--cyan);
+  text-transform: uppercase; margin-bottom: 1.2rem; opacity: 0.85;
+}
+.tagline {
+  font-size: clamp(0.85rem, 3vw, 1.1rem);
+  color: var(--muted); font-weight: 400;
+  margin-bottom: 1.5rem; font-style: italic;
+  max-width: 320px; margin-left: auto; margin-right: auto;
+}
+
+/* Capability badges */
+.cap-badges {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: 0.5rem; margin-bottom: 2rem;
+}
+.cap-badge {
+  font-family: var(--font-mono);
+  font-size: 0.62rem; letter-spacing: 0.1em;
+  padding: 0.3rem 0.7rem; border-radius: 20px;
+  text-transform: uppercase; border: 1px solid;
+  display: flex; align-items: center; gap: 0.3rem;
+}
+.cap-badge.green  { color: var(--green);  border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.05); }
+.cap-badge.cyan   { color: var(--cyan);   border-color: rgba(0,229,255,0.3); background: rgba(0,229,255,0.05); }
+.cap-badge.amber  { color: var(--amber);  border-color: rgba(255,140,0,0.3); background: rgba(255,140,0,0.05); }
+.cap-badge.purple { color: var(--purple); border-color: rgba(155,89,255,0.3); background: rgba(155,89,255,0.05); }
+
+.stats-row {
+  display: flex; gap: 1rem; justify-content: center;
+  flex-wrap: wrap; margin-bottom: 2.5rem;
+}
+.stat-chip {
+  background: rgba(10,32,56,0.85);
+  border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.6rem 1rem; text-align: center; backdrop-filter: blur(8px);
+}
+.stat-num {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 5vw, 2.2rem);
+  color: var(--cyan); display: block; line-height: 1;
+}
+.stat-label {
+  font-size: clamp(0.6rem, 2vw, 0.72rem); color: var(--muted);
+  font-family: var(--font-mono); text-transform: uppercase;
+  letter-spacing: 0.08em; display: block; margin-top: 0.2rem;
+}
+.btn-activate {
+  display: inline-block; font-family: var(--font-display);
+  font-size: clamp(1.2rem, 4vw, 1.6rem);
+  letter-spacing: 0.12em; color: var(--white);
+  background: linear-gradient(135deg, #c8001e 0%, #ff1a2e 40%, #ff4444 100%);
+  border: none; border-radius: 8px; padding: 1rem 2.8rem;
+  cursor: pointer; position: relative; overflow: hidden;
+  box-shadow: 0 0 30px rgba(255,26,46,0.5), 0 4px 20px rgba(0,0,0,0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease; min-width: 240px;
+}
+.btn-activate::before {
+  content: ''; position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+.btn-activate:hover::before { left: 150%; }
+.btn-activate:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 0 45px rgba(255,26,46,0.7), 0 8px 30px rgba(0,0,0,0.5); }
+.btn-activate:active { transform: scale(0.98); }
+
+/* ═══════════════════════════════════════════
+   SHARED HEADER
+═══════════════════════════════════════════ */
+.app-header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(4,15,30,0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0.7rem 1.2rem;
+  display: flex; align-items: center; gap: 0.8rem;
+}
+.hdr-logo {
+  font-family: var(--font-display);
+  font-size: 1.5rem; letter-spacing: 0.1em;
+  color: var(--white);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.hdr-logo span { color: var(--red); }
+.hdr-spacer { flex: 1; }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: blink 2s ease-in-out infinite;
+}
+.status-dot.offline { background: var(--muted); box-shadow: none; animation: none; }
+.status-dot.red     { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+.status-dot.amber   { background: var(--amber); box-shadow: 0 0 8px var(--amber); animation: blink 1s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.status-label {
+  font-family: var(--font-mono); font-size: 0.68rem;
+  letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase;
+}
+.api-badge {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  padding: 0.2rem 0.5rem; border-radius: 4px;
+  border: 1px solid var(--border);
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+}
+.api-badge.active { border-color: var(--green); color: var(--green); }
+.api-badge.demo   { border-color: var(--amber); color: var(--amber); }
+.btn-back {
+  background: none; border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--font-mono);
+  font-size: 0.72rem; padding: 0.35rem 0.7rem;
+  border-radius: 5px; cursor: pointer; transition: all 0.2s;
+  letter-spacing: 0.05em;
+}
+.btn-back:hover { color: var(--cyan); border-color: var(--cyan); }
+
+/* ═══════════════════════════════════════════
+   SCREEN 2: EMERGENCY SETUP
+═══════════════════════════════════════════ */
+#s2 .screen-body { padding: 1.2rem 1.2rem 5rem; max-width: 680px; margin: 0 auto; }
+
+/* ── SIMULATE GOV ALERT BUTTON ── */
+.btn-sim-alert {
+  width: 100%; margin-bottom: 1.4rem;
+  background: linear-gradient(135deg, rgba(155,89,255,0.15), rgba(155,89,255,0.05));
+  border: 1px solid rgba(155,89,255,0.5);
+  color: var(--purple); font-family: var(--font-mono);
+  font-size: 0.78rem; letter-spacing: 0.1em;
+  padding: 0.8rem 1rem; border-radius: 8px; cursor: pointer;
+  text-transform: uppercase; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 0.6rem;
+  position: relative; overflow: hidden;
+}
+.btn-sim-alert::before {
+  content: ''; position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(155,89,255,0.15), transparent);
+  transition: left 0.6s;
+}
+.btn-sim-alert:hover::before { left: 150%; }
+.btn-sim-alert:hover { border-color: var(--purple); box-shadow: 0 0 20px rgba(155,89,255,0.2); transform: translateY(-1px); }
+.btn-sim-alert:active { transform: scale(0.99); }
+.sim-pulse {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--purple); animation: blink 1s ease-in-out infinite;
+}
+
+/* ── BACKEND CONFIG (minimal, collapsed) ── */
+.backend-strip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; margin-bottom: 1.4rem; overflow: hidden;
+}
+.backend-strip-hdr {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding: 0.65rem 1rem; cursor: pointer; user-select: none;
+}
+.backend-strip-title {
+  font-family: var(--font-mono); font-size: 0.72rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; flex: 1;
+}
+.api-chevron { color: var(--muted); font-size: 0.8rem; transition: transform 0.3s; }
+.backend-strip.open .api-chevron { transform: rotate(180deg); }
+.backend-strip-body { display: none; padding: 0 1rem 1rem; }
+.backend-strip.open .backend-strip-body { display: block; }
+.api-input-row { display: flex; gap: 0.5rem; align-items: center; }
+.api-input {
+  flex: 1; background: var(--dim); border: 1px solid var(--border);
+  color: var(--white); font-family: var(--font-mono); font-size: 0.8rem;
+  padding: 0.6rem 0.8rem; border-radius: 6px; outline: none;
+  transition: border-color 0.2s;
+}
+.api-input:focus { border-color: var(--cyan); }
+.api-input::placeholder { color: var(--muted); }
+.btn-eye {
+  background: var(--dim); border: 1px solid var(--border);
+  color: var(--muted); padding: 0.6rem 0.7rem;
+  border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s;
+}
+.btn-eye:hover { color: var(--cyan); border-color: var(--cyan); }
+.btn-save {
+  background: linear-gradient(135deg, #004020, #00c060);
+  border: none; color: var(--white); font-family: var(--font-mono);
+  font-size: 0.72rem; letter-spacing: 0.08em; padding: 0.6rem 1rem;
+  border-radius: 6px; cursor: pointer; text-transform: uppercase;
+  transition: all 0.2s; white-space: nowrap;
+}
+.btn-save:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,192,96,0.3); }
+
+/* Section headers */
+.section-hdr {
+  font-family: var(--font-mono); font-size: 0.72rem;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.16em;
+  margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem;
+}
+.section-hdr::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* Emergency type grid */
+.etype-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem; margin-bottom: 1.5rem;
+}
+@media (max-width: 380px) { .etype-grid { grid-template-columns: repeat(2, 1fr); } }
+.etype-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.9rem 0.5rem 0.7rem;
+  text-align: center; cursor: pointer; transition: all 0.2s ease;
+  position: relative; overflow: hidden;
+}
+.etype-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,26,46,0.08), transparent);
+  opacity: 0; transition: opacity 0.2s;
+}
+.etype-card:hover::before { opacity: 1; }
+.etype-card:hover { border-color: rgba(255,26,46,0.5); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+.etype-card.selected { border-color: var(--red); background: rgba(255,26,46,0.1); box-shadow: 0 0 16px rgba(255,26,46,0.2); }
+.etype-icon { font-size: 1.8rem; display: block; margin-bottom: 0.35rem; }
+.etype-label { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+.etype-card.selected .etype-label { color: var(--red); }
+
+/* Alert textarea */
+.alert-textarea {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  color: var(--white); font-family: var(--font-ui); font-size: 0.95rem;
+  padding: 0.9rem 1rem; border-radius: 8px; min-height: 110px;
+  resize: vertical; outline: none; transition: border-color 0.2s;
+  margin-bottom: 1.4rem; line-height: 1.5;
+}
+.alert-textarea:focus { border-color: var(--cyan); }
+.alert-textarea::placeholder { color: var(--muted); }
+
+/* Chips */
+.chips-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.4rem; }
+.chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 0.45rem 0.9rem;
+  font-family: var(--font-ui); font-size: 0.85rem;
+  font-weight: 500; color: var(--muted); cursor: pointer;
+  transition: all 0.18s; user-select: none;
+}
+.chip:hover { border-color: var(--cyan); color: var(--cyan); }
+.chip.selected { background: rgba(0,229,255,0.1); border-color: var(--cyan); color: var(--cyan); }
+
+/* Language chips — show voice supported */
+.lang-chip-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.4rem; }
+.lang-chip {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 0.4rem 0.85rem;
+  font-family: var(--font-ui); font-size: 0.82rem;
+  font-weight: 500; color: var(--muted); cursor: pointer;
+  transition: all 0.18s; user-select: none;
+  display: flex; align-items: center; gap: 0.35rem;
+}
+.lang-chip:hover { border-color: var(--cyan); color: var(--cyan); }
+.lang-chip.selected { background: rgba(0,229,255,0.1); border-color: var(--cyan); color: var(--cyan); }
+.lang-voice-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--green); opacity: 0.7;
+}
+
+/* Caregiver input */
+.cg-input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border);
+  color: var(--white); font-family: var(--font-ui); font-size: 0.95rem;
+  padding: 0.75rem 1rem; border-radius: 8px; outline: none;
+  transition: border-color 0.2s; margin-bottom: 1.4rem;
+}
+.cg-input:focus { border-color: var(--amber); }
+.cg-input::placeholder { color: var(--muted); }
+
+/* Offline badge row */
+.offline-badges {
+  display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.4rem;
+}
+.offline-badge {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 0.3rem 0.7rem; border-radius: 4px;
+  border: 1px solid rgba(0,255,136,0.25);
+  color: var(--green); background: rgba(0,255,136,0.05);
+  display: flex; align-items: center; gap: 0.35rem;
+}
+
+/* Analyze button */
+.btn-analyze {
+  width: 100%;
+  background: linear-gradient(135deg, #8b0010 0%, #cc0018 40%, #ff1a2e 100%);
+  border: none; color: var(--white); font-family: var(--font-display);
+  font-size: clamp(1.2rem, 4vw, 1.5rem); letter-spacing: 0.15em;
+  padding: 1.1rem 2rem; border-radius: 10px;
+  cursor: pointer; position: relative; overflow: hidden;
+  box-shadow: 0 0 30px rgba(255,26,46,0.4), 0 4px 20px rgba(0,0,0,0.4);
+  transition: all 0.2s;
+}
+.btn-analyze::before {
+  content: ''; position: absolute; top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent);
+  transition: left 0.6s;
+}
+.btn-analyze:hover::before { left: 150%; }
+.btn-analyze:hover { transform: translateY(-2px); box-shadow: 0 0 50px rgba(255,26,46,0.6), 0 8px 30px rgba(0,0,0,0.5); }
+.btn-analyze:active { transform: scale(0.98); }
+
+/* ═══════════════════════════════════════════
+   SCREEN 3: AI PROCESSING
+═══════════════════════════════════════════ */
+#s3 {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 2rem 1.5rem;
+  animation: borderFlash 0.8s ease-in-out infinite;
+}
+@keyframes borderFlash {
+  0%,100%{ box-shadow: inset 0 0 0 2px rgba(255,26,46,0); }
+  50%    { box-shadow: inset 0 0 0 2px rgba(255,26,46,0.25); }
+}
+.proc-inner { width: 100%; max-width: 520px; }
+.emergency-tag {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: rgba(255,26,46,0.12); border: 1px solid var(--red);
+  border-radius: 5px; padding: 0.35rem 0.9rem;
+  font-family: var(--font-mono); font-size: 0.72rem;
+  letter-spacing: 0.15em; color: var(--red); text-transform: uppercase;
+  animation: tagFlash 0.7s ease-in-out infinite; margin-bottom: 1.5rem;
+}
+@keyframes tagFlash { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.proc-step-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.8rem, 6vw, 2.8rem);
+  letter-spacing: 0.05em; color: var(--white);
+  margin-bottom: 2rem; min-height: 2.5rem; transition: all 0.3s;
+}
+.heartbeat-wrap { margin-bottom: 2rem; overflow: hidden; }
+.heartbeat-svg { width: 100%; height: 60px; }
+.hb-line {
+  fill: none; stroke: var(--red); stroke-width: 2;
+  stroke-dasharray: 800; stroke-dashoffset: 800;
+  filter: drop-shadow(0 0 6px rgba(255,26,46,0.7));
+  animation: drawLine 1.8s ease forwards;
+}
+@keyframes drawLine { to { stroke-dashoffset: 0; } }
+.proc-steps { display: flex; flex-direction: column; gap: 0.6rem; }
+.proc-step {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 0.7rem 0.9rem;
+  display: flex; align-items: center; gap: 0.8rem;
+  position: relative; overflow: hidden;
+}
+.proc-step::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 0%; background: rgba(0,229,255,0.05); transition: width 0.5s ease;
+}
+.proc-step.done { border-color: rgba(0,255,136,0.3); }
+.proc-step.done::before { width: 100%; background: rgba(0,255,136,0.05); }
+.proc-step.active { border-color: rgba(0,229,255,0.3); }
+.proc-step.active::before { width: 60%; background: rgba(0,229,255,0.05); }
+.step-icon { font-size: 1.1rem; width: 24px; text-align: center; flex-shrink: 0; line-height: 1; }
+.proc-step.active .step-icon { animation: spinIcon 1s linear infinite; }
+@keyframes spinIcon { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.step-text {
+  flex: 1; font-family: var(--font-mono); font-size: 0.75rem;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+.proc-step.active .step-text { color: var(--cyan); }
+.proc-step.done  .step-text { color: var(--green); }
+.step-check { font-size: 0.85rem; color: var(--green); opacity: 0; transition: opacity 0.3s; }
+.proc-step.done .step-check { opacity: 1; }
+.step-prog { height: 2px; background: var(--border); border-radius: 2px; margin-top: 0.35rem; overflow: hidden; display: none; }
+.proc-step.active .step-prog { display: block; }
+.step-prog-bar {
+  height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green));
+  animation: stepFill 1.2s ease forwards; border-radius: 2px;
+}
+@keyframes stepFill { from{width:0%} to{width:100%} }
+
+/* ═══════════════════════════════════════════
+   SCREEN 4: RESULTS
+═══════════════════════════════════════════ */
+#s4 .screen-body { padding: 0 0 5rem; max-width: 700px; margin: 0 auto; }
+.danger-banner {
+  padding: 1.1rem 1.5rem; display: flex; align-items: center; gap: 1rem;
+  border-bottom: 1px solid var(--border); margin-bottom: 1.5rem;
+}
+.danger-banner.CRITICAL{ background:linear-gradient(135deg,rgba(255,26,46,0.18),rgba(255,26,46,0.06)); border-left:4px solid var(--red); }
+.danger-banner.HIGH    { background:linear-gradient(135deg,rgba(255,140,0,0.18),rgba(255,140,0,0.06));  border-left:4px solid var(--amber); }
+.danger-banner.MEDIUM  { background:linear-gradient(135deg,rgba(255,220,0,0.15),rgba(255,220,0,0.04)); border-left:4px solid #ffd000; }
+.danger-banner.LOW     { background:linear-gradient(135deg,rgba(0,255,136,0.15),rgba(0,255,136,0.04)); border-left:4px solid var(--green); }
+.danger-label { font-family:var(--font-display); font-size:clamp(1.4rem,5vw,2rem); letter-spacing:0.12em; }
+.CRITICAL .danger-label { color:var(--red); }
+.HIGH     .danger-label { color:var(--amber); }
+.MEDIUM   .danger-label { color:#ffd000; }
+.LOW      .danger-label { color:var(--green); }
+.danger-type { font-family:var(--font-mono); font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; }
+.danger-mode-badge {
+  margin-left: auto; font-family: var(--font-mono); font-size: 0.6rem;
+  padding: 0.25rem 0.55rem; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.08em;
+}
+.mode-ai  { border: 1px solid rgba(0,229,255,0.4); color: var(--cyan); background: rgba(0,229,255,0.07); }
+.mode-off { border: 1px solid rgba(255,140,0,0.4); color: var(--amber); background: rgba(255,140,0,0.07); }
+
+.score-section { padding: 0 1.2rem 1.5rem; display: flex; align-items: center; gap: 1.5rem; }
+.score-ring-wrap { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
+.score-svg { width: 100px; height: 100px; transform: rotate(-90deg); }
+.score-track { fill: none; stroke: var(--border); stroke-width: 8; }
+.score-fill {
+  fill: none; stroke: var(--red); stroke-width: 8; stroke-linecap: round;
+  stroke-dasharray: 263; stroke-dashoffset: 263;
+  filter: drop-shadow(0 0 6px rgba(255,26,46,0.6));
+  transition: stroke-dashoffset 1.2s ease;
+}
+.score-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.score-val { font-family: var(--font-display); font-size: 2rem; line-height: 1; color: var(--white); }
+.score-of  { font-family: var(--font-mono); font-size: 0.6rem; color: var(--muted); letter-spacing: 0.08em; }
+.summary-text { font-size: clamp(0.9rem, 3vw, 1.05rem); color: var(--white); line-height: 1.5; font-weight: 500; }
+
+/* Instruction cards */
+.instructions-section { padding: 0 1.2rem; }
+.instr-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1rem 1rem 1rem 1.2rem;
+  margin-bottom: 0.8rem; display: flex; align-items: flex-start; gap: 0.9rem;
+  cursor: pointer; transition: all 0.2s;
+  position: relative; overflow: hidden;
+  opacity: 0; transform: translateX(-14px);
+  animation: cardIn 0.4s ease forwards;
+}
+@keyframes cardIn { to { opacity: 1; transform: translateX(0); } }
+.instr-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; }
+.instr-card.urg-high::before { background: var(--red); }
+.instr-card.urg-med::before  { background: var(--amber); }
+.instr-card.urg-low::before  { background: var(--cyan); }
+.instr-card:hover { border-color: rgba(0,229,255,0.3); transform: translateX(2px); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+.instr-card.shaking  { animation: shakeCard  0.1s  linear  infinite !important; }
+.instr-card.speaking { animation: speakPulse 0.6s ease-in-out infinite !important; border-color: rgba(155,89,255,0.5) !important; }
+.instr-card.active-transmit { border-color: rgba(0,229,255,0.6) !important; background: rgba(0,229,255,0.04) !important; transform: translateX(4px) !important; }
+@keyframes shakeCard  { 0%{transform:translateX(-2px)} 50%{transform:translateX(2px)} 100%{transform:translateX(-2px)} }
+@keyframes speakPulse { 0%,100%{box-shadow:0 0 0 0 rgba(155,89,255,0)} 50%{box-shadow:0 0 12px 3px rgba(155,89,255,0.3)} }
+.instr-num { font-family: var(--font-display); font-size: 1.6rem; line-height: 1; color: var(--muted); flex-shrink: 0; width: 28px; }
+.instr-body { flex: 1; }
+.instr-text { font-size: clamp(0.88rem, 3vw, 1rem); font-weight: 600; color: var(--white); line-height: 1.45; margin-bottom: 0.4rem; }
+.instr-meta { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.vib-desc { font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted); letter-spacing: 0.06em; }
+.urgency-badge {
+  font-family: var(--font-mono); font-size: 0.6rem;
+  padding: 0.15rem 0.4rem; border-radius: 3px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.urg-high .urgency-badge { background: rgba(255,26,46,0.15);  color: var(--red);   border: 1px solid rgba(255,26,46,0.3); }
+.urg-med  .urgency-badge { background: rgba(255,140,0,0.15);  color: var(--amber); border: 1px solid rgba(255,140,0,0.3); }
+.urg-low  .urgency-badge { background: rgba(0,229,255,0.1);   color: var(--cyan);  border: 1px solid rgba(0,229,255,0.2); }
+.tap-hint { font-family: var(--font-mono); font-size: 0.58rem; color: var(--muted); opacity: 0.6; }
+
+/* Voice indicator on card */
+.voice-indicator {
+  display: none; align-items: center; gap: 0.25rem;
+  font-family: var(--font-mono); font-size: 0.58rem; color: var(--purple);
+}
+.voice-indicator.active { display: flex; }
+.voice-bar {
+  width: 3px; border-radius: 1px; background: var(--purple);
+  animation: voiceBarAnim 0.4s ease-in-out infinite alternate;
+}
+.voice-bar:nth-child(1) { height: 6px; animation-delay: 0s; }
+.voice-bar:nth-child(2) { height: 10px; animation-delay: 0.1s; }
+.voice-bar:nth-child(3) { height: 7px; animation-delay: 0.2s; }
+.voice-bar:nth-child(4) { height: 12px; animation-delay: 0.05s; }
+@keyframes voiceBarAnim { from{transform:scaleY(0.4)} to{transform:scaleY(1)} }
+
+/* Vibration engine */
+.vib-engine {
+  margin: 1.5rem 1.2rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+}
+.vib-engine-hdr {
+  padding: 0.8rem 1.1rem; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+}
+.vib-engine-title { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--cyan); }
+.vib-status-group { display: flex; align-items: center; gap: 0.6rem; }
+.transmit-badge {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  color: var(--red); letter-spacing: 0.1em; text-transform: uppercase;
+  display: none; align-items: center; gap: 0.35rem;
+}
+.transmit-badge.active { display: flex; }
+.voice-badge {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  color: var(--purple); letter-spacing: 0.1em; text-transform: uppercase;
+  display: none; align-items: center; gap: 0.35rem;
+}
+.voice-badge.active { display: flex; }
+.live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--red); animation: blink 0.5s ease-in-out infinite; }
+.voice-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--purple); animation: blink 0.5s ease-in-out infinite; }
+.wave-canvas-wrap { padding: 0.8rem 1.1rem; position: relative; }
+#waveCanvas { width: 100%; height: 70px; display: block; border-radius: 4px; background: rgba(2,8,16,0.6); }
+.freq-bars { display: flex; align-items: flex-end; gap: 2px; height: 36px; padding: 0.4rem 1.1rem 0.6rem; }
+.freq-bar { flex: 1; background: var(--red); border-radius: 2px 2px 0 0; min-height: 3px; transition: height 0.08s ease; opacity: 0.7; }
+.freq-bar.speaking-mode { background: var(--purple); }
+
+/* Transmit + Stop buttons */
+.transmit-btns { display: flex; gap: 0.8rem; padding: 0 1.1rem 1.1rem; }
+.btn-transmit {
+  flex: 1; background: transparent; border: 1px solid var(--red); color: var(--red);
+  font-family: var(--font-display); font-size: clamp(0.9rem, 3vw, 1.1rem);
+  letter-spacing: 0.15em; padding: 0.9rem; border-radius: 8px;
+  cursor: pointer; position: relative; overflow: hidden; transition: all 0.2s;
+}
+.btn-transmit::before {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 0;
+  background: rgba(255,26,46,0.12); transition: height 0.3s ease;
+}
+.btn-transmit:hover::before { height: 100%; }
+.btn-transmit:hover { color: var(--white); box-shadow: 0 0 20px rgba(255,26,46,0.25); }
+.btn-transmit:active { transform: scale(0.99); }
+.btn-stop-transmit {
+  background: transparent; border: 1px solid var(--muted); color: var(--muted);
+  font-family: var(--font-mono); font-size: 0.72rem;
+  letter-spacing: 0.1em; padding: 0.9rem 1rem; border-radius: 8px;
+  cursor: pointer; transition: all 0.2s; text-transform: uppercase;
+  display: none; white-space: nowrap;
+}
+.btn-stop-transmit.visible { display: block; }
+.btn-stop-transmit:hover { border-color: var(--red); color: var(--red); }
+
+/* Language indicator */
+.lang-active-badge {
+  font-family: var(--font-mono); font-size: 0.62rem;
+  padding: 0.18rem 0.5rem; border-radius: 4px;
+  border: 1px solid rgba(155,89,255,0.35);
+  color: var(--purple); background: rgba(155,89,255,0.07);
+  text-transform: uppercase; letter-spacing: 0.08em;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+}
+
+/* Caregiver panel */
+.cg-panel {
+  margin: 0 1.2rem 1.5rem;
+  background: rgba(255,140,0,0.06); border: 1px solid rgba(255,140,0,0.25);
+  border-radius: 10px; padding: 1rem;
+}
+.cg-panel-title { font-family: var(--font-mono); font-size: 0.68rem; color: var(--amber); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.6rem; }
+.cg-msg-box {
+  background: var(--dim); border: 1px solid var(--border); border-radius: 6px;
+  padding: 0.75rem; font-family: var(--font-mono); font-size: 0.78rem;
+  color: var(--white); line-height: 1.5; margin-bottom: 0.8rem; min-height: 60px;
+}
+.btn-sms {
+  width: 100%; background: linear-gradient(135deg, #7a4400, var(--amber));
+  border: none; color: var(--void); font-family: var(--font-display);
+  font-size: 1.1rem; letter-spacing: 0.12em; padding: 0.75rem;
+  border-radius: 7px; cursor: pointer; transition: all 0.2s; font-weight: 700;
+}
+.btn-sms:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(255,140,0,0.35); }
+
+.btn-reset {
+  display: block; width: calc(100% - 2.4rem);
+  margin: 0 1.2rem 1.5rem;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--font-display);
+  font-size: 1.1rem; letter-spacing: 0.12em; padding: 0.85rem;
+  border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center;
+}
+.btn-reset:hover { border-color: var(--cyan); color: var(--cyan); }
+
+/* ═══════════════════════════════════════════
+   SMS SIMULATION OVERLAY
+═══════════════════════════════════════════ */
+#sms-overlay {
+  position: fixed; inset: 0; z-index: 8000;
+  background: rgba(2,8,16,0.88); backdrop-filter: blur(6px);
+  display: none; align-items: flex-start; justify-content: center;
+  padding-top: 3rem;
+}
+#sms-overlay.active { display: flex; }
+.sms-popup {
+  width: min(400px, calc(100vw - 2rem));
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 40px rgba(155,89,255,0.15);
+  animation: smsSlideIn 0.45s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  transform-origin: top center;
+}
+@keyframes smsSlideIn { from{opacity:0;transform:translateY(-30px) scale(0.93)} to{opacity:1;transform:translateY(0) scale(1)} }
+.sms-popup-header {
+  background: rgba(155,89,255,0.1); border-bottom: 1px solid rgba(155,89,255,0.25);
+  padding: 0.9rem 1.2rem; display: flex; align-items: center; gap: 0.75rem;
+}
+.sms-gov-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg, #5c2dcc, var(--purple));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(155,89,255,0.4);
+}
+.sms-gov-name { font-family: var(--font-mono); font-size: 0.72rem; color: var(--purple); text-transform: uppercase; letter-spacing: 0.12em; }
+.sms-gov-sub  { font-family: var(--font-mono); font-size: 0.6rem;  color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.sms-popup-time {
+  margin-left: auto; font-family: var(--font-mono); font-size: 0.62rem;
+  color: var(--muted); text-align: right;
+}
+.sms-popup-body { padding: 1.2rem; }
+.sms-sim-label {
+  font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--purple); margin-bottom: 0.75rem;
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.sms-msg-bubble {
+  background: rgba(155,89,255,0.1); border: 1px solid rgba(155,89,255,0.2);
+  border-radius: 12px; border-top-left-radius: 3px;
+  padding: 0.9rem 1rem; margin-bottom: 1rem;
+  font-family: var(--font-ui); font-size: 0.9rem;
+  color: var(--white); line-height: 1.55;
+}
+.sms-alert-type {
+  font-family: var(--font-mono); font-size: 0.7rem;
+  padding: 0.3rem 0.7rem; border-radius: 4px; margin-bottom: 0.8rem;
+  display: inline-block; text-transform: uppercase; letter-spacing: 0.1em;
+}
+.sms-btns { display: flex; gap: 0.7rem; }
+.btn-sms-dismiss {
+  flex: 1; background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem;
+  letter-spacing: 0.1em; padding: 0.75rem; border-radius: 8px;
+  cursor: pointer; text-transform: uppercase; transition: all 0.2s;
+}
+.btn-sms-dismiss:hover { border-color: var(--muted); color: var(--white); }
+.btn-sms-analyze {
+  flex: 2;
+  background: linear-gradient(135deg, #5c2dcc, var(--purple));
+  border: none; color: var(--white); font-family: var(--font-display);
+  font-size: 1rem; letter-spacing: 0.12em; padding: 0.75rem;
+  border-radius: 8px; cursor: pointer; transition: all 0.2s;
+}
+.btn-sms-analyze:hover { box-shadow: 0 4px 16px rgba(155,89,255,0.4); transform: translateY(-1px); }
+.sms-incoming-anim {
+  display: flex; align-items: center; gap: 0.5rem;
+  font-family: var(--font-mono); font-size: 0.65rem; color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+.typing-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--purple);
+  animation: typingBounce 1.2s ease-in-out infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+/* ═══════════════════════════════════════════
+   TOAST NOTIFICATIONS
+═══════════════════════════════════════════ */
+#toast-wrap {
+  position: fixed; bottom: 1.5rem; right: 1.2rem; z-index: 9999;
+  display: flex; flex-direction: column; gap: 0.5rem; align-items: flex-end;
+  pointer-events: none; max-width: 300px;
+}
+.toast {
+  background: var(--panel); border-radius: 8px;
+  padding: 0.7rem 1rem; font-family: var(--font-mono);
+  font-size: 0.75rem; letter-spacing: 0.05em; line-height: 1.4;
+  border-left: 3px solid var(--cyan);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: toastIn 0.3s ease; max-width: 100%; word-break: break-word;
+}
+.toast.ok   { border-color: var(--green);  color: var(--green); }
+.toast.err  { border-color: var(--red);    color: var(--red); }
+.toast.inf  { border-color: var(--cyan);   color: var(--cyan); }
+.toast.warn { border-color: var(--amber);  color: var(--amber); }
+.toast.vox  { border-color: var(--purple); color: var(--purple); }
+@keyframes toastIn  { from{opacity:0;transform:translateX(20px)} to{opacity:1;transform:translateX(0)} }
+@keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(20px)} }
+
+/* ── LOADER OVERLAY ── */
+#loader-overlay {
+  display: none; position: fixed; inset: 0; z-index: 5000;
+  background: rgba(2,8,16,0.85); backdrop-filter: blur(4px);
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 1rem;
+}
+#loader-overlay.active { display: flex; }
+.loader-ring {
+  width: 50px; height: 50px; border: 3px solid var(--border);
+  border-top-color: var(--red); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-text { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+
+/* ── OFFLINE BANNER ── */
+#offline-banner {
+  display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  background: rgba(255,140,0,0.12); border-bottom: 1px solid rgba(255,140,0,0.3);
+  padding: 0.5rem 1.2rem; text-align: center;
+  font-family: var(--font-mono); font-size: 0.7rem;
+  color: var(--amber); text-transform: uppercase; letter-spacing: 0.1em;
+}
+#offline-banner.active { display: block; }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--void); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+select {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--white); font-family: var(--font-ui);
+  font-size: 0.9rem; padding: 0.55rem 0.8rem; border-radius: 6px; outline: none;
+}
+#s4 { padding-bottom: 2rem; }
+</style>
+</head>
+<body>
+
+<!-- Offline Banner -->
+<div id="offline-banner">📴 OFFLINE MODE ACTIVE — Using built-in emergency database · ✔ Works Offline</div>
+
+<!-- Toast wrapper -->
+<div id="toast-wrap"></div>
+
+<!-- Loader overlay -->
+<div id="loader-overlay">
+  <div class="loader-ring"></div>
+  <div class="loader-text" id="loader-text">Processing...</div>
+</div>
+
+<!-- ═══ SMS SIMULATION OVERLAY ═══ -->
+<div id="sms-overlay">
+  <div class="sms-popup">
+    <div class="sms-popup-header">
+      <div class="sms-gov-icon">🏛️</div>
+      <div>
+        <div class="sms-gov-name">NATIONAL ALERT SYSTEM</div>
+        <div class="sms-gov-sub">Government Emergency Broadcast</div>
+      </div>
+      <div class="sms-popup-time" id="sms-time">12:34 PM<br><span style="color:var(--red);font-size:0.58rem;">● NOW</span></div>
+    </div>
+    <div class="sms-popup-body">
+      <div class="sms-sim-label">
+        <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+        ⚠ SIMULATED GOVERNMENT ALERT — DEMO MODE
+      </div>
+      <div class="sms-alert-type" id="sms-alert-badge">🌊 FLOOD WARNING</div>
+      <div class="sms-msg-bubble" id="sms-msg-content">Loading alert...</div>
+      <div class="sms-btns">
+        <button class="btn-sms-dismiss" onclick="closeSmsOverlay()">DISMISS</button>
+        <button class="btn-sms-analyze" onclick="analyzeSmsAlert()">⚡ ANALYZE NOW</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN 1: HOME / SPLASH
+═══════════════════════════════════════════ -->
+<div id="s1" class="screen active">
+  <div class="radar-bg">
+    <div class="radar-ring"></div><div class="radar-ring"></div>
+    <div class="radar-ring"></div><div class="radar-ring"></div>
+    <div class="radar-ring"></div>
+    <div class="radar-sweep"></div>
+  </div>
+  <div class="s1-content">
+    <div class="logo-ring"><div class="logo-icon">📳</div></div>
+    <div class="s1-title">VOICEMAP</div>
+    <div class="s1-sub">AI Emergency Assistant v2.0</div>
+    <div class="tagline">"AI that speaks through touch.<br>No one left behind."</div>
+    <div class="cap-badges">
+      <div class="cap-badge green">✔ Works Offline</div>
+      <div class="cap-badge cyan">🌐 30+ Languages</div>
+      <div class="cap-badge purple">🗣 Voice Output</div>
+      <div class="cap-badge amber">📳 Haptic Feedback</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-chip">
+        <span class="stat-num">36M</span>
+        <span class="stat-label">Deaf-blind people</span>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-num">0</span>
+        <span class="stat-label">Existing solutions</span>
+      </div>
+      <div class="stat-chip">
+        <span class="stat-num">100%</span>
+        <span class="stat-label">Offline capable</span>
+      </div>
+    </div>
+    <button class="btn-activate" onclick="go('s2')">⚡ ACTIVATE SYSTEM</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN 2: EMERGENCY SETUP
+═══════════════════════════════════════════ -->
+<div id="s2" class="screen">
+  <div class="app-header">
+    <div class="hdr-logo">📳 <span>VOICE</span>MAP</div>
+    <div class="hdr-spacer"></div>
+    <div class="status-dot" id="conn-dot"></div>
+    <span class="status-label" id="conn-label">ONLINE</span>
+    <span class="api-badge" id="api-badge">AI READY</span>
+    <button class="btn-back" onclick="go('s1')">← HOME</button>
+  </div>
+  <div class="screen-body">
+
+    <!-- Offline capability badges -->
+    <div class="offline-badges">
+      <div class="offline-badge">✔ Works Offline</div>
+      <div class="offline-badge">✔ Voice Output</div>
+      <div class="offline-badge">✔ 30+ Languages</div>
+    </div>
+
+    <!-- Simulate Government Alert button -->
+    <button class="btn-sim-alert" onclick="showSimAlert()">
+      <div class="sim-pulse"></div>
+      📩 SIMULATE GOVERNMENT ALERT
+      <span style="color:var(--muted);font-size:0.58rem;">[DEMO]</span>
+    </button>
+
+    <!-- Backend config (hidden by default) -->
+    <div class="backend-strip" id="backend-strip" style="cursor:default">
+      <div class="backend-strip-hdr" style="cursor:default">
+        <span style="font-size:0.85rem">🔒</span>
+        <span class="backend-strip-title">Backend: API key secured server-side</span>
+        <span style="font-family:var(--font-mono);font-size:0.6rem;color:var(--green);border:1px solid rgba(0,255,136,0.3);padding:0.15rem 0.4rem;border-radius:3px;">SECURE</span>
+      </div>
+    </div>
+
+    <!-- Emergency Type Grid -->
+    <div class="section-hdr">Select Emergency Type</div>
+    <div class="etype-grid" id="etype-grid">
+      <div class="etype-card" data-type="Flood"      onclick="selectType(this)"><span class="etype-icon">🌊</span><div class="etype-label">FLOOD</div></div>
+      <div class="etype-card" data-type="Fire"       onclick="selectType(this)"><span class="etype-icon">🔥</span><div class="etype-label">FIRE</div></div>
+      <div class="etype-card" data-type="Earthquake" onclick="selectType(this)"><span class="etype-icon">🌍</span><div class="etype-label">EARTHQUAKE</div></div>
+      <div class="etype-card" data-type="Cyclone"    onclick="selectType(this)"><span class="etype-icon">🌀</span><div class="etype-label">CYCLONE</div></div>
+      <div class="etype-card" data-type="Chemical"   onclick="selectType(this)"><span class="etype-icon">☣️</span><div class="etype-label">CHEMICAL</div></div>
+      <div class="etype-card" data-type="Custom"     onclick="selectType(this)"><span class="etype-icon">✏️</span><div class="etype-label">CUSTOM</div></div>
+    </div>
+
+    <!-- Alert Text -->
+    <div class="section-hdr">Emergency Alert Text</div>
+    <textarea class="alert-textarea" id="alert-text"
+      placeholder="Paste or type emergency alert here...&#10;&#10;Supports: English | বাংলা (Bengali) | हिन्दी (Hindi) | Español | Français | العربية | 中文 | and 30+ more languages&#10;&#10;Or click 'SIMULATE GOVERNMENT ALERT' above for a demo."></textarea>
+
+    <!-- User Profile -->
+    <div class="section-hdr">User Profile</div>
+    <div class="chips-row" id="profile-chips">
+      <div class="chip selected" data-val="Adult"   onclick="selectChip(this,'profile')">🧑 Adult</div>
+      <div class="chip"          data-val="Elderly"  onclick="selectChip(this,'profile')">👴 Elderly</div>
+      <div class="chip"          data-val="Child"    onclick="selectChip(this,'profile')">👦 Child</div>
+      <div class="chip"          data-val="Group"    onclick="selectChip(this,'profile')">👨‍👩‍👦 Group</div>
+    </div>
+
+    <!-- Language -->
+    <div class="section-hdr">Response + Voice Language</div>
+    <div class="lang-chip-row" id="lang-chips">
+      <div class="lang-chip selected" data-val="English"    data-code="en-US"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇬🇧 English</div>
+      <div class="lang-chip"          data-val="Bengali"    data-code="bn-IN"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇧🇩 বাংলা</div>
+      <div class="lang-chip"          data-val="Hindi"      data-code="hi-IN"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇮🇳 हिन्दी</div>
+      <div class="lang-chip"          data-val="Spanish"    data-code="es-ES"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇪🇸 Español</div>
+      <div class="lang-chip"          data-val="French"     data-code="fr-FR"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇫🇷 Français</div>
+      <div class="lang-chip"          data-val="Arabic"     data-code="ar-SA"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇸🇦 العربية</div>
+      <div class="lang-chip"          data-val="Chinese"    data-code="zh-CN"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇨🇳 中文</div>
+      <div class="lang-chip"          data-val="Portuguese" data-code="pt-BR"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇧🇷 Português</div>
+      <div class="lang-chip"          data-val="Russian"    data-code="ru-RU"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇷🇺 Русский</div>
+      <div class="lang-chip"          data-val="German"     data-code="de-DE"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇩🇪 Deutsch</div>
+      <div class="lang-chip"          data-val="Japanese"   data-code="ja-JP"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇯🇵 日本語</div>
+      <div class="lang-chip"          data-val="Korean"     data-code="ko-KR"  onclick="selectLangChip(this)"><div class="lang-voice-dot"></div>🇰🇷 한국어</div>
+    </div>
+
+    <!-- Caregiver Phone -->
+    <div class="section-hdr">Caregiver Phone (Optional)</div>
+    <input type="tel" class="cg-input" id="cg-phone"
+      placeholder="e.g. +1 555 123 4567 — for auto SMS alert">
+
+    <!-- Analyze Button -->
+    <button class="btn-analyze" onclick="startAnalysis()">⚡ ANALYZE EMERGENCY</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN 3: AI PROCESSING
+═══════════════════════════════════════════ -->
+<div id="s3" class="screen">
+  <div class="proc-inner">
+    <div class="emergency-tag"><span>⚠</span> EMERGENCY DETECTED</div>
+    <div class="proc-step-title" id="proc-title">INITIALIZING GEMMA 4</div>
+    <div class="heartbeat-wrap">
+      <svg class="heartbeat-svg" viewBox="0 0 500 60" preserveAspectRatio="none">
+        <path class="hb-line" id="hb-path"
+          d="M0,30 L60,30 L80,30 L90,8 L100,52 L110,18 L120,44 L130,30 L160,30
+             L180,30 L200,30 L210,6 L220,54 L230,16 L240,46 L250,30 L290,30
+             L310,30 L320,10 L330,50 L340,20 L350,42 L360,30 L400,30
+             L420,30 L430,12 L440,48 L450,22 L460,40 L470,30 L500,30"/>
+      </svg>
+    </div>
+    <div class="proc-steps" id="proc-steps">
+      <div class="proc-step" id="step-0">
+        <span class="step-icon">⚙</span>
+        <div style="flex:1"><div class="step-text">Initializing AI Backend</div><div class="step-prog"><div class="step-prog-bar"></div></div></div>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="proc-step" id="step-1">
+        <span class="step-icon">🌐</span>
+        <div style="flex:1"><div class="step-text">Detecting Language</div><div class="step-prog"><div class="step-prog-bar"></div></div></div>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="proc-step" id="step-2">
+        <span class="step-icon">🔍</span>
+        <div style="flex:1"><div class="step-text">Classifying Disaster Type</div><div class="step-prog"><div class="step-prog-bar"></div></div></div>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="proc-step" id="step-3">
+        <span class="step-icon">⚠</span>
+        <div style="flex:1"><div class="step-text">Computing Danger Level</div><div class="step-prog"><div class="step-prog-bar"></div></div></div>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="proc-step" id="step-4">
+        <span class="step-icon">📋</span>
+        <div style="flex:1"><div class="step-text">Generating Survival Protocol</div><div class="step-prog"><div class="step-prog-bar"></div></div></div>
+        <span class="step-check">✓</span>
+      </div>
+      <div class="proc-step" id="step-5">
+        <span class="step-icon">🗣</span>
+        <div style="flex:1"><div class="step-text">Encoding Voice + Vibration Patterns</div><div class="step-prog"><div class="step-prog-bar"></div></div></div>
+        <span class="step-check">✓</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCREEN 4: RESULTS
+═══════════════════════════════════════════ -->
+<div id="s4" class="screen">
+  <div class="app-header">
+    <div class="hdr-logo">📳 <span>VOICE</span>MAP</div>
+    <div class="hdr-spacer"></div>
+    <span class="lang-active-badge" id="lang-active-badge">🗣 EN</span>
+    <div class="status-dot red"></div>
+    <span class="status-label" style="color:var(--red)">ALERT</span>
+  </div>
+  <div class="screen-body">
+
+    <!-- Danger banner -->
+    <div class="danger-banner CRITICAL" id="danger-banner">
+      <div>
+        <div class="danger-label" id="danger-label">CRITICAL</div>
+        <div class="danger-type"  id="danger-type">🌊 FLOOD EMERGENCY</div>
+      </div>
+      <span class="danger-mode-badge mode-off" id="danger-mode-badge">OFFLINE</span>
+    </div>
+
+    <!-- Score ring + summary -->
+    <div class="score-section">
+      <div class="score-ring-wrap">
+        <svg class="score-svg" viewBox="0 0 100 100">
+          <circle class="score-track" cx="50" cy="50" r="42"/>
+          <circle class="score-fill"  id="score-fill" cx="50" cy="50" r="42"/>
+        </svg>
+        <div class="score-num">
+          <span class="score-val" id="score-val">9</span>
+          <span class="score-of">/10</span>
+        </div>
+      </div>
+      <div class="summary-text" id="result-summary">AI-generated emergency summary will appear here.</div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions-section">
+      <div class="section-hdr" style="padding:0 0 0.8rem 0">Survival Instructions — Tap card to speak + vibrate</div>
+      <div id="instr-list"></div>
+    </div>
+
+    <!-- Vibration + Voice Engine -->
+    <div class="vib-engine">
+      <div class="vib-engine-hdr">
+        <span class="vib-engine-title">📳 Voice + Vibration Engine</span>
+        <div class="vib-status-group">
+          <span class="voice-badge" id="voice-badge"><span class="voice-live-dot"></span> SPEAKING</span>
+          <span class="transmit-badge" id="transmit-badge"><span class="live-dot"></span> TRANSMITTING</span>
+        </div>
+      </div>
+      <div class="wave-canvas-wrap">
+        <canvas id="waveCanvas"></canvas>
+      </div>
+      <div class="freq-bars" id="freq-bars"></div>
+      <div class="transmit-btns">
+        <button class="btn-transmit" id="btn-transmit" onclick="transmitAll()">📳 TRANSMIT ALL — VOICE + VIBRATION</button>
+        <button class="btn-stop-transmit" id="btn-stop" onclick="stopTransmit()">■ STOP</button>
+      </div>
+    </div>
+
+    <!-- Caregiver Panel -->
+    <div class="cg-panel" id="cg-panel" style="display:none">
+      <div class="cg-panel-title">📱 Caregiver Alert</div>
+      <div class="cg-msg-box" id="cg-msg-box">Generating SMS message...</div>
+      <button class="btn-sms" onclick="sendSMS()">📤 SEND ALERT SMS</button>
+    </div>
+
+    <!-- Reset -->
+    <button class="btn-reset" onclick="resetApp()">⟳ NEW EMERGENCY</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════ -->
+<script>
+/* ══════════════════════════════════════════════════════════════
+   BACKEND CONFIG — API key lives server-side as GEMMA_API_KEY
+   env variable. The frontend only calls /api/analyze — the key
+   never reaches the browser.
+══════════════════════════════════════════════════════════════ */
+const BACKEND_CONFIG = {
+  // All requests go to our own server proxy — no key in the browser
+  ANALYZE_ENDPOINT: // Netlify (without netlify.toml)
+ANALYZE_ENDPOINT: '/.netlify/functions/analyze',
+  TEMPERATURE: 0.2,
+  MAX_TOKENS: 1024
+};
+
+/* ══════════════════════════════════════════════════════════════
+   LANGUAGE VOICE CODES MAP (30+ languages)
+══════════════════════════════════════════════════════════════ */
+const LANG_VOICE_CODES = {
+  'English':    'en-US',
+  'Bengali':    'bn-IN',
+  'Hindi':      'hi-IN',
+  'Spanish':    'es-ES',
+  'French':     'fr-FR',
+  'Arabic':     'ar-SA',
+  'Chinese':    'zh-CN',
+  'Portuguese': 'pt-BR',
+  'Russian':    'ru-RU',
+  'German':     'de-DE',
+  'Japanese':   'ja-JP',
+  'Korean':     'ko-KR',
+  'Italian':    'it-IT',
+  'Dutch':      'nl-NL',
+  'Polish':     'pl-PL',
+  'Turkish':    'tr-TR',
+  'Vietnamese': 'vi-VN',
+  'Thai':       'th-TH',
+  'Indonesian': 'id-ID',
+  'Malay':      'ms-MY',
+  'Swahili':    'sw-KE',
+  'Urdu':       'ur-PK',
+  'Punjabi':    'pa-IN',
+  'Tamil':      'ta-IN',
+  'Telugu':     'te-IN',
+  'Marathi':    'mr-IN',
+  'Gujarati':   'gu-IN',
+  'Kannada':    'kn-IN',
+  'Malayalam':  'ml-IN',
+  'Odia':       'or-IN',
+  'Ukrainian':  'uk-UA',
+  'Greek':      'el-GR',
+  'Hebrew':     'he-IL',
+  'Persian':    'fa-IR',
+  'Romanian':   'ro-RO',
+  'Swedish':    'sv-SE',
+  'Norwegian':  'nb-NO',
+  'Danish':     'da-DK',
+  'Finnish':    'fi-FI',
+  'Hungarian':  'hu-HU',
+  'Czech':      'cs-CZ'
+};
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+const APP = {
+  eType:        '',
+  profile:      'Adult',
+  lang:         'English',
+  langCode:     'en-US',
+  cgPhone:      '',
+  result:       null,
+  waveAmp:      6,
+  wavePhase:    0,
+  isVibrating:  false,
+  isSpeaking:   false,
+  stopRequested:false,
+  waveRaf:      null,
+  freqInterval: null,
+  usedApi:      false,
+
+  // SMS simulation data
+  simAlertData: null
+};
+
+/* ══════════════════════════════════════════════════════════════
+   SCREEN NAVIGATION
+══════════════════════════════════════════════════════════════ */
+function go(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+  const target = document.getElementById(id);
+  target.style.display = 'block';
+  requestAnimationFrame(() => {
+    target.classList.add('active');
+    window.scrollTo(0, 0);
+  });
+  if (id === 's2') updateHeader();
+  if (id === 's4') updateOfflineBanner();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   OFFLINE DETECTION
+══════════════════════════════════════════════════════════════ */
+function updateOfflineBanner() {
+  const banner = document.getElementById('offline-banner');
+  if (!navigator.onLine) {
+    banner.classList.add('active');
+    toast('📴 Offline Mode Active — Using built-in emergency database', 'warn');
+  } else {
+    banner.classList.remove('active');
+  }
+}
+
+function updateHeader() {
+  const dot   = document.getElementById('conn-dot');
+  const lbl   = document.getElementById('conn-label');
+  const badge = document.getElementById('api-badge');
+
+  if (navigator.onLine) {
+    dot.className  = 'status-dot';
+    lbl.textContent = 'ONLINE';
+  } else {
+    dot.className  = 'status-dot offline';
+    lbl.textContent = 'OFFLINE';
+  }
+
+  // API key lives server-side — badge always shows server-backed when online
+  if (navigator.onLine) {
+    badge.textContent = 'API: SERVER';
+    badge.className   = 'api-badge active';
+  } else {
+    badge.textContent = 'DEMO MODE';
+    badge.className   = 'api-badge demo';
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BACKEND API STRIP — removed (key is server-side only)
+══════════════════════════════════════════════════════════════ */
+function toggleBackendStrip() {
+  // No-op: API key config has been moved to the server
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LANGUAGE CHIP SELECTION
+══════════════════════════════════════════════════════════════ */
+function selectLangChip(chip) {
+  document.querySelectorAll('#lang-chips .lang-chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+  APP.lang     = chip.dataset.val;
+  APP.langCode = chip.dataset.code || LANG_VOICE_CODES[APP.lang] || 'en-US';
+}
+
+function selectChip(chip, group) {
+  const container = document.getElementById(group === 'profile' ? 'profile-chips' : 'lang-chips');
+  container.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  chip.classList.add('selected');
+  if (group === 'profile') APP.profile = chip.dataset.val;
+  else APP.lang = chip.dataset.val;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EMERGENCY TYPE SELECTION
+══════════════════════════════════════════════════════════════ */
+const ETYPE_TEXTS = {
+  Flood:      "SEVERE FLOOD WARNING: Water levels rising rapidly in your area. Immediate evacuation to higher ground is required. Do not attempt to walk through floodwaters.",
+  Fire:       "URGENT FIRE ALERT: Active fire spreading rapidly. Extreme heat and smoke detected. Evacuate immediately. Do not use elevators. Cover nose and mouth.",
+  Earthquake: "EARTHQUAKE ALERT: Major seismic activity detected. Magnitude 6.8. Aftershocks expected. Stay away from buildings. Move to open area immediately.",
+  Cyclone:    "CYCLONE WARNING: Category 4 cyclone approaching. Sustained winds 250 km/h. Storm surge expected. Evacuate coastal areas immediately. Seek strong shelter.",
+  Chemical:   "HAZMAT ALERT: Toxic chemical leak detected nearby. Dangerous gas levels in air. Do NOT inhale. Cover face immediately. Evacuate upwind direction NOW.",
+  Custom:     ""
+};
+function selectType(card) {
+  document.querySelectorAll('.etype-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  APP.eType = card.dataset.type;
+  const txt = ETYPE_TEXTS[APP.eType];
+  if (txt) document.getElementById('alert-text').value = txt;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TOAST SYSTEM
+══════════════════════════════════════════════════════════════ */
+function toast(msg, type = 'inf') {
+  const wrap = document.getElementById('toast-wrap');
+  const t    = document.createElement('div');
+  t.className  = `toast ${type}`;
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => t.remove(), 300);
+  }, 4200);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOADER
+══════════════════════════════════════════════════════════════ */
+function showLoader(txt) {
+  document.getElementById('loader-text').textContent = txt || 'Processing...';
+  document.getElementById('loader-overlay').classList.add('active');
+}
+function hideLoader() {
+  document.getElementById('loader-overlay').classList.remove('active');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SMS SIMULATION OVERLAY
+══════════════════════════════════════════════════════════════ */
+const SIM_ALERTS = [
+  {
+    type: 'Flood', icon: '🌊', badge: '🌊 FLOOD WARNING',
+    badgeClass: 'background:rgba(0,100,255,0.15);color:#4dabff;border:1px solid rgba(0,100,255,0.4)',
+    text: '⚠ ALERT FROM DISTRICT EMERGENCY MANAGEMENT AUTHORITY\n\nSEVERE FLOOD WARNING issued for your area. The [RIVER] has exceeded critical levels. Immediate evacuation mandatory for all low-lying areas. Move to nearest designated shelter. This is an official government emergency broadcast.'
+  },
+  {
+    type: 'Fire', icon: '🔥', badge: '🔥 WILDFIRE EMERGENCY',
+    badgeClass: 'background:rgba(255,60,0,0.15);color:#ff6030;border:1px solid rgba(255,60,0,0.4)',
+    text: '🚨 EMERGENCY BROADCAST — WILDFIRE ALERT\n\nRapidly spreading wildfire detected 5km from your location. Wind conditions making containment difficult. EVACUATE IMMEDIATELY via designated routes. Do NOT use main highway. Report to emergency assembly point. Keep all windows and doors closed.'
+  },
+  {
+    type: 'Earthquake', icon: '🌍', badge: '🌍 SEISMIC ALERT',
+    badgeClass: 'background:rgba(100,60,0,0.15);color:#c87830;border:1px solid rgba(150,80,0,0.4)',
+    text: '⚠ SEISMIC ALERT — NATIONAL DISASTER MANAGEMENT\n\nMAGNITUDE 7.2 EARTHQUAKE detected. Epicenter 40km from your location. Severe structural damage expected. TAKE COVER IMMEDIATELY. Stay away from buildings and power lines. Aftershocks expected. Tsunami warning issued for coastal areas.'
+  },
+  {
+    type: 'Cyclone', icon: '🌀', badge: '🌀 CYCLONE WARNING',
+    badgeClass: 'background:rgba(0,100,150,0.15);color:#30c0e0;border:1px solid rgba(0,120,180,0.4)',
+    text: '🌀 CYCLONE WARNING — CATEGORY 4 APPROACHING\n\nCyclone DELTA with sustained winds of 220 km/h expected to make landfall in 6 hours. MANDATORY EVACUATION for all coastal zones. Seek strongest available shelter immediately. Storm surge of 4-6 meters forecast. All non-essential movement restricted.'
+  },
+  {
+    type: 'Chemical', icon: '☣️', badge: '☣️ CHEMICAL HAZARD',
+    badgeClass: 'background:rgba(100,200,0,0.1);color:#80d020;border:1px solid rgba(100,180,0,0.35)',
+    text: '☣ HAZMAT EMERGENCY — GOVERNMENT CHEMICAL ALERT\n\nToxic chemical release detected at industrial facility. Dangerous airborne contamination spreading. EVACUATE UPWIND IMMEDIATELY. Do NOT breathe outdoor air without protection. Seek sealed indoor shelter if evacuation not possible. Emergency response teams deployed.'
+  }
+];
+
+function showSimAlert() {
+  const alert = SIM_ALERTS[Math.floor(Math.random() * SIM_ALERTS.length)];
+  APP.simAlertData = alert;
+
+  // Update time
+  const now  = new Date();
+  const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('sms-time').innerHTML = `${time}<br><span style="color:var(--red);font-size:0.58rem;">● NOW</span>`;
+
+  // Update badge
+  const badgeEl = document.getElementById('sms-alert-badge');
+  badgeEl.textContent = alert.badge;
+  badgeEl.style.cssText = alert.badgeClass;
+
+  // Update message content
+  document.getElementById('sms-msg-content').textContent = alert.text;
+
+  // Show overlay
+  document.getElementById('sms-overlay').classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Vibrate notification pattern
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+  toast('📩 Incoming government emergency alert!', 'vox');
+}
+
+function closeSmsOverlay() {
+  document.getElementById('sms-overlay').classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+function analyzeSmsAlert() {
+  if (!APP.simAlertData) return;
+  closeSmsOverlay();
+
+  // Auto-fill form
+  document.getElementById('alert-text').value = APP.simAlertData.text;
+
+  // Select matching type card
+  const cards = document.querySelectorAll('.etype-card');
+  cards.forEach(c => {
+    c.classList.remove('selected');
+    if (c.dataset.type === APP.simAlertData.type) {
+      c.classList.add('selected');
+      APP.eType = APP.simAlertData.type;
+    }
+  });
+
+  toast(`✓ Alert loaded: ${APP.simAlertData.type} — Starting analysis...`, 'inf');
+
+  // Auto-start analysis after brief delay
+  setTimeout(() => startAnalysis(), 600);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WEB SPEECH API — VOICE OUTPUT SYSTEM
+══════════════════════════════════════════════════════════════ */
+let voicesLoaded = false;
+let availableVoices = [];
+
+function loadVoices() {
+  availableVoices = speechSynthesis.getVoices();
+  if (availableVoices.length > 0) voicesLoaded = true;
+}
+
+if ('speechSynthesis' in window) {
+  loadVoices();
+  speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+/**
+ * Speak text in the given language
+ * @param {string} text  - Text to speak
+ * @param {string} lang  - APP.lang value (e.g. "English", "Bengali")
+ * @param {string} code  - BCP-47 code fallback (e.g. "en-US")
+ * @returns {Promise}    - Resolves when speech ends
+ */
+function speak(text, lang, code) {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window)) { resolve(); return; }
+    if (APP.stopRequested) { resolve(); return; }
+
+    // Cancel any ongoing speech
+    speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    const targetCode = code || LANG_VOICE_CODES[lang] || 'en-US';
+    utterance.lang = targetCode;
+    utterance.rate  = 0.92;  // slightly slower for clarity
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+
+    // Find best matching voice
+    if (availableVoices.length === 0) loadVoices();
+    let selectedVoice = null;
+
+    // Try exact match first
+    selectedVoice = availableVoices.find(v => v.lang === targetCode);
+
+    // Try language prefix match (e.g. bn for bn-IN)
+    if (!selectedVoice) {
+      const prefix = targetCode.split('-')[0];
+      selectedVoice = availableVoices.find(v => v.lang.startsWith(prefix));
+    }
+
+    // Fall back to English
+    if (!selectedVoice) {
+      selectedVoice = availableVoices.find(v => v.lang.startsWith('en'));
+      if (selectedVoice && targetCode !== 'en-US') {
+        toast(`🗣 Voice for ${lang} not found — using English`, 'warn');
+      }
+    }
+
+    if (selectedVoice) utterance.voice = selectedVoice;
+
+    utterance.onend    = () => resolve();
+    utterance.onerror  = () => resolve();
+    utterance.oncancel = () => resolve();
+
+    speechSynthesis.speak(utterance);
+  });
+}
+
+function stopSpeech() {
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BACKEND API CALL — proxied through /api/analyze
+   The GEMMA_API_KEY env variable lives only on the server.
+══════════════════════════════════════════════════════════════ */
+async function callGemmaBackend(alertText) {
+  const prompt = `You are VoiceMap, an emergency AI for deaf-blind individuals.
+Analyze this alert and return ONLY valid JSON — no markdown, no extra text.
+
+Alert: "${alertText}"
+Language: ${APP.lang}
+Profile: ${APP.profile}
+
+Return exactly this JSON:
+{
+  "disasterType": "Flood|Fire|Earthquake|Cyclone|Chemical|Other",
+  "dangerLevel": "CRITICAL|HIGH|MEDIUM|LOW",
+  "dangerScore": 1-10,
+  "summary": "one sentence in ${APP.lang}",
+  "instructions": [
+    {
+      "text": "instruction text in ${APP.lang}",
+      "urgencyScore": 1-10,
+      "vibrationPattern": "description e.g. 5 rapid pulses"
+    }
+  ],
+  "caregiverMessage": "short SMS alert in English"
+}
+
+Rules:
+- Provide exactly 4-6 instructions
+- Sort by urgencyScore descending (most urgent first)
+- Instructions must be simple, direct, actionable for a deaf-blind person
+- Adapt language complexity for ${APP.profile} user
+- ALL instruction text must be in ${APP.lang} language
+- Return ONLY the JSON object, nothing else`;
+
+  const res = await fetch(BACKEND_CONFIG.ANALYZE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt,
+      temperature: BACKEND_CONFIG.TEMPERATURE,
+      maxOutputTokens: BACKEND_CONFIG.MAX_TOKENS
+    })
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.error || `HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  let rawText = data.text || '';
+
+  // Strip markdown fences
+  rawText = rawText.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+  const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Invalid JSON response from API');
+
+  return JSON.parse(jsonMatch[0]);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DEMO DATA FALLBACK (OFFLINE MODE)
+══════════════════════════════════════════════════════════════ */
+const DEMO_DATA = {
+  Flood: {
+    disasterType: "Flood", dangerLevel: "CRITICAL", dangerScore: 9,
+    summary: "Severe flooding — water levels rising rapidly. Immediate evacuation to higher ground required.",
+    instructions: [
+      { text: "Move IMMEDIATELY to the highest floor or rooftop. Do not wait.", urgencyScore: 10, vibrationPattern: "5 rapid intense pulses" },
+      { text: "Do NOT walk through moving water — even 6 inches can knock you down.", urgencyScore: 9, vibrationPattern: "4 long pulses" },
+      { text: "Turn off electricity at the main circuit breaker before water enters.", urgencyScore: 8, vibrationPattern: "3 medium pulses" },
+      { text: "Grab emergency kit: water, food, medications, and ID documents.", urgencyScore: 7, vibrationPattern: "3 short pulses" },
+      { text: "Signal for rescue from rooftop with bright cloth or a flashlight.", urgencyScore: 6, vibrationPattern: "2 short pulses" }
+    ],
+    caregiverMessage: "🆘 VOICEMAP ALERT: Flood emergency. Your contact needs immediate help evacuating. Call 911 and check on them NOW."
+  },
+  Fire: {
+    disasterType: "Fire", dangerLevel: "CRITICAL", dangerScore: 10,
+    summary: "Active fire spreading rapidly — extreme heat and toxic smoke. Evacuate immediately.",
+    instructions: [
+      { text: "EVACUATE IMMEDIATELY — get out now, do not collect belongings.", urgencyScore: 10, vibrationPattern: "5 maximum rapid pulses" },
+      { text: "Stay LOW — crawl on floor where air is cleaner and cooler.", urgencyScore: 9, vibrationPattern: "4 long intense pulses" },
+      { text: "Feel door before opening — if hot, DO NOT open, find another exit.", urgencyScore: 8, vibrationPattern: "3 long pulses" },
+      { text: "Cover mouth and nose with wet cloth to filter smoke.", urgencyScore: 7, vibrationPattern: "3 medium pulses" },
+      { text: "Once outside, stay far away and call 911. Do NOT go back inside.", urgencyScore: 6, vibrationPattern: "2 pulses" }
+    ],
+    caregiverMessage: "🆘 VOICEMAP ALERT: FIRE EMERGENCY. Building on fire. Call 911 immediately. Verify your contact's safe evacuation."
+  },
+  Earthquake: {
+    disasterType: "Earthquake", dangerLevel: "CRITICAL", dangerScore: 9,
+    summary: "Major earthquake — structural damage likely. Aftershocks expected. Avoid all buildings.",
+    instructions: [
+      { text: "DROP, COVER, HOLD — get under sturdy table, protect head and neck.", urgencyScore: 10, vibrationPattern: "5 sharp pulses" },
+      { text: "Stay AWAY from windows, glass, and heavy objects that may fall.", urgencyScore: 9, vibrationPattern: "4 long pulses" },
+      { text: "If outdoors — move away from buildings, trees, and power lines NOW.", urgencyScore: 8, vibrationPattern: "3 long pulses" },
+      { text: "Do NOT use elevators. Use stairs only after shaking completely stops.", urgencyScore: 7, vibrationPattern: "3 medium pulses" },
+      { text: "Check for gas leaks — if you smell gas, open windows and evacuate.", urgencyScore: 6, vibrationPattern: "2 pulses" }
+    ],
+    caregiverMessage: "🆘 VOICEMAP ALERT: Earthquake emergency. Your contact may be in danger. Call them and contact emergency services if needed."
+  },
+  Cyclone: {
+    disasterType: "Cyclone", dangerLevel: "CRITICAL", dangerScore: 8,
+    summary: "Category 4 cyclone approaching — destructive winds and storm surge. Seek strong shelter now.",
+    instructions: [
+      { text: "Seek SHELTER IMMEDIATELY in the strongest room — interior walls, no windows.", urgencyScore: 10, vibrationPattern: "5 rapid pulses" },
+      { text: "Stay AWAY from all windows and glass doors — flying debris is deadly.", urgencyScore: 9, vibrationPattern: "4 long pulses" },
+      { text: "Evacuate coastal areas immediately — storm surge of 5+ meters expected.", urgencyScore: 8, vibrationPattern: "3 long pulses" },
+      { text: "If driving, stop car away from trees. Do not drive during the storm.", urgencyScore: 7, vibrationPattern: "3 short pulses" },
+      { text: "After storm passes — avoid downed power lines and flooded roads.", urgencyScore: 5, vibrationPattern: "2 soft pulses" }
+    ],
+    caregiverMessage: "🆘 VOICEMAP ALERT: Cyclone emergency. Your contact is in the storm's path. Ensure they have reached safe shelter."
+  },
+  Chemical: {
+    disasterType: "Chemical", dangerLevel: "HIGH", dangerScore: 8,
+    summary: "Toxic chemical leak — dangerous airborne hazard. Cover your face and evacuate upwind immediately.",
+    instructions: [
+      { text: "COVER MOUTH AND NOSE immediately with wet cloth or respirator mask.", urgencyScore: 10, vibrationPattern: "5 rapid pulses" },
+      { text: "Evacuate UPWIND of the source — move perpendicular to wind direction.", urgencyScore: 9, vibrationPattern: "4 long pulses" },
+      { text: "Do NOT eat, drink, or touch anything in the contaminated area.", urgencyScore: 8, vibrationPattern: "3 long pulses" },
+      { text: "Remove and bag contaminated clothing. Shower thoroughly if exposed.", urgencyScore: 7, vibrationPattern: "3 medium pulses" },
+      { text: "Seek medical attention immediately, even if symptoms seem minor.", urgencyScore: 6, vibrationPattern: "2 medium pulses" }
+    ],
+    caregiverMessage: "🆘 VOICEMAP ALERT: Chemical hazard. Your contact is near a toxic leak. Ensure evacuation and call poison control if exposed."
+  },
+  Other: {
+    disasterType: "Other", dangerLevel: "HIGH", dangerScore: 7,
+    summary: "Emergency situation detected. Follow safety protocols and contact emergency services immediately.",
+    instructions: [
+      { text: "Call emergency services 911 immediately or have someone call for you.", urgencyScore: 9, vibrationPattern: "4 long pulses" },
+      { text: "Stay CALM and quickly assess your immediate surroundings for hazards.", urgencyScore: 8, vibrationPattern: "4 medium pulses" },
+      { text: "Move AWAY from the primary hazard zone to a safe distance.", urgencyScore: 8, vibrationPattern: "3 long pulses" },
+      { text: "Follow all instructions from official emergency personnel.", urgencyScore: 7, vibrationPattern: "3 medium pulses" },
+      { text: "Stay with others if possible — do not separate from your group.", urgencyScore: 5, vibrationPattern: "2 soft pulses" }
+    ],
+    caregiverMessage: "🆘 VOICEMAP ALERT: Emergency situation. Please check on your contact immediately and contact emergency services."
+  }
+};
+
+function getDemoData(alertText) {
+  const txt = alertText.toLowerCase();
+  if (txt.match(/flood|water|বন্যা|洪水|inundation|innondation/i))        return DEMO_DATA.Flood;
+  if (txt.match(/fire|আগুন|आग|flame|blaze|incendie|fuego/i))              return DEMO_DATA.Fire;
+  if (txt.match(/earthquake|quake|ভূমিকম্প|भूकंप|seismic|sismic|tremblement/i)) return DEMO_DATA.Earthquake;
+  if (txt.match(/cyclone|hurricane|ঘূর্ণিঝড়|तूफान|typhoon|storm|ouragan/i))     return DEMO_DATA.Cyclone;
+  if (txt.match(/chemical|gas|toxic|hazmat|poison|☣|chimique/i))          return DEMO_DATA.Chemical;
+  if (APP.eType && DEMO_DATA[APP.eType]) return DEMO_DATA[APP.eType];
+  return DEMO_DATA.Other;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VIBRATION PATTERNS
+══════════════════════════════════════════════════════════════ */
+function getVibPattern(score) {
+  if (score >= 10) return [500,80,500,80,500,80,500,80,500];
+  if (score >= 9)  return [400,80,400,80,400,80,400];
+  if (score >= 8)  return [300,80,300,80,300];
+  if (score >= 7)  return [250,80,250,80,200];
+  if (score >= 5)  return [200,80,200];
+  return [150,60,150];
+}
+
+function doVibrate(pattern) {
+  if (!navigator.vibrate) return false;
+  navigator.vibrate(pattern);
+  return true;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   WAVE CANVAS
+══════════════════════════════════════════════════════════════ */
+let waveCtx = null;
+
+function initWave() {
+  const canvas = document.getElementById('waveCanvas');
+  if (!canvas) return;
+  canvas.width  = canvas.offsetWidth || 300;
+  canvas.height = 70;
+  waveCtx = canvas.getContext('2d');
+  if (!APP.waveRaf) animateWave();
+}
+
+function animateWave() {
+  APP.waveRaf = requestAnimationFrame(animateWave);
+  drawWave();
+  APP.wavePhase += 0.048;
+}
+
+function drawWave() {
+  if (!waveCtx) return;
+  const canvas = document.getElementById('waveCanvas');
+  if (!canvas) return;
+  const W = canvas.width, H = canvas.height;
+  const amp = APP.waveAmp;
+
+  waveCtx.clearRect(0, 0, W, H);
+
+  // Baseline
+  waveCtx.beginPath();
+  waveCtx.strokeStyle = 'rgba(14,48,96,0.6)';
+  waveCtx.lineWidth = 1;
+  waveCtx.moveTo(0, H/2); waveCtx.lineTo(W, H/2);
+  waveCtx.stroke();
+
+  // Glow layer
+  waveCtx.beginPath();
+  waveCtx.strokeStyle = APP.isSpeaking
+    ? 'rgba(155,89,255,0.14)'
+    : 'rgba(255,26,46,0.14)';
+  waveCtx.lineWidth = 7;
+  for (let x = 0; x <= W; x++) {
+    const y = H/2
+      + Math.sin(x * 0.038 + APP.wavePhase) * amp
+      + Math.sin(x * 0.09  + APP.wavePhase * 1.4) * amp * 0.28;
+    x === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+  }
+  waveCtx.stroke();
+
+  // Main wave
+  waveCtx.beginPath();
+  waveCtx.strokeStyle = APP.isSpeaking ? '#9b59ff' : '#ff1a2e';
+  waveCtx.lineWidth = 2;
+  waveCtx.shadowBlur = 7;
+  waveCtx.shadowColor = APP.isSpeaking ? '#9b59ff' : '#ff1a2e';
+  for (let x = 0; x <= W; x++) {
+    const y = H/2
+      + Math.sin(x * 0.038 + APP.wavePhase) * amp
+      + Math.sin(x * 0.09  + APP.wavePhase * 1.4) * amp * 0.28;
+    x === 0 ? waveCtx.moveTo(x, y) : waveCtx.lineTo(x, y);
+  }
+  waveCtx.stroke();
+  waveCtx.shadowBlur = 0;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FREQUENCY BARS
+══════════════════════════════════════════════════════════════ */
+function initFreqBars() {
+  const wrap = document.getElementById('freq-bars');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  for (let i = 0; i < 22; i++) {
+    const bar = document.createElement('div');
+    bar.className  = 'freq-bar';
+    bar.style.height = '3px';
+    wrap.appendChild(bar);
+  }
+}
+
+function animateFreqBars(active, amplitude, isSpeaking) {
+  const bars = document.querySelectorAll('.freq-bar');
+  if (APP.freqInterval) clearInterval(APP.freqInterval);
+
+  if (!active) {
+    bars.forEach(b => {
+      b.style.height  = '3px';
+      b.style.opacity = '0.3';
+      b.classList.remove('speaking-mode');
+    });
+    return;
+  }
+
+  bars.forEach(b => {
+    if (isSpeaking) b.classList.add('speaking-mode');
+    else            b.classList.remove('speaking-mode');
+  });
+
+  APP.freqInterval = setInterval(() => {
+    bars.forEach((b, i) => {
+      const base = amplitude * 2;
+      const h = Math.max(3, Math.random() * base + Math.sin(i * 0.8 + APP.wavePhase * 2) * base * 0.5);
+      b.style.height  = h + 'px';
+      b.style.opacity = '0.7';
+    });
+  }, 80);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PROCESSING ANIMATION
+══════════════════════════════════════════════════════════════ */
+const STEP_NAMES = [
+  'INITIALIZING AI BACKEND',
+  'DETECTING LANGUAGE',
+  'CLASSIFYING DISASTER',
+  'COMPUTING DANGER LEVEL',
+  'GENERATING SURVIVAL PROTOCOL',
+  'ENCODING VOICE + VIBRATIONS'
+];
+
+function resetSteps() {
+  for (let i = 0; i < 6; i++) {
+    const s = document.getElementById('step-' + i);
+    s.classList.remove('active', 'done');
+    s.querySelector('.step-prog').style.display = 'none';
+  }
+  const hbLine = document.getElementById('hb-path');
+  if (hbLine) {
+    hbLine.style.animation = 'none';
+    void hbLine.offsetHeight;
+    hbLine.style.animation = 'drawLine 1.8s ease forwards';
+  }
+}
+
+function runStepAnimation(index) {
+  return new Promise(resolve => {
+    const s    = document.getElementById('step-' + index);
+    s.classList.add('active');
+    document.getElementById('proc-title').textContent = STEP_NAMES[index];
+
+    const prog = s.querySelector('.step-prog');
+    const bar  = s.querySelector('.step-prog-bar');
+    prog.style.display = 'block';
+    bar.style.animation = 'none';
+    void bar.offsetHeight;
+    bar.style.animation = 'stepFill 1.2s ease forwards';
+
+    setTimeout(() => {
+      s.classList.remove('active');
+      s.classList.add('done');
+      resolve();
+    }, 1250);
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN ANALYSIS FLOW
+══════════════════════════════════════════════════════════════ */
+async function startAnalysis() {
+  const alertText = document.getElementById('alert-text').value.trim();
+  if (!alertText) { toast('Please enter or select an emergency type', 'err'); return; }
+
+  APP.cgPhone      = document.getElementById('cg-phone').value.trim();
+  APP.stopRequested = false;
+  APP.usedApi       = false;
+
+  go('s3');
+  resetSteps();
+
+  let apiResult = null, apiError = null;
+
+  // Fire off API call in background immediately — key is server-side
+  let apiPromise = null;
+  if (navigator.onLine) {
+    apiPromise = callGemmaBackend(alertText)
+      .then(r  => { apiResult = r; APP.usedApi = true; })
+      .catch(e => { apiError  = e; });
+  }
+
+  // Run animated steps 0-3 while API processes
+  await runStepAnimation(0);
+  await runStepAnimation(1);
+  await runStepAnimation(2);
+  await runStepAnimation(3);
+
+  // Wait for API (max 4s) at step 4
+  if (apiPromise) {
+    await Promise.race([apiPromise, new Promise(r => setTimeout(r, 4000))]);
+  }
+
+  await runStepAnimation(4);
+  await runStepAnimation(5);
+
+  // Decide result source
+  if (apiResult) {
+    APP.result = apiResult;
+    toast('✓ Gemma 4 analysis complete', 'ok');
+  } else {
+    APP.result = getDemoData(alertText);
+    if (apiError) {
+      toast('Server error — Offline mode: ' + apiError.message.substring(0, 50), 'warn');
+    } else {
+      toast('📴 Offline Mode Active — Using built-in database', 'warn');
+    }
+  }
+
+  await new Promise(r => setTimeout(r, 350));
+  showResults();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SHOW RESULTS
+══════════════════════════════════════════════════════════════ */
+function showResults() {
+  const R = APP.result;
+  if (!R) return;
+
+  // Update lang badge in header
+  const langCodes = { English:'EN', Bengali:'বাং', Hindi:'हिं', Spanish:'ES', French:'FR', Arabic:'عر', Chinese:'中', Portuguese:'PT', Russian:'РУ', German:'DE', Japanese:'JP', Korean:'KR' };
+  document.getElementById('lang-active-badge').textContent = '🗣 ' + (langCodes[APP.lang] || APP.lang.slice(0,2).toUpperCase());
+
+  // Danger banner
+  const banner = document.getElementById('danger-banner');
+  banner.className = 'danger-banner ' + R.dangerLevel;
+  document.getElementById('danger-label').textContent = R.dangerLevel;
+  const typeIcons = { Flood:'🌊', Fire:'🔥', Earthquake:'🌍', Cyclone:'🌀', Chemical:'☣️', Other:'⚠' };
+  document.getElementById('danger-type').textContent =
+    (typeIcons[R.disasterType] || '⚠') + ' ' + R.disasterType.toUpperCase() + ' EMERGENCY';
+
+  // Mode badge
+  const modeBadge = document.getElementById('danger-mode-badge');
+  if (APP.usedApi) {
+    modeBadge.textContent  = '✦ GEMMA 4 AI';
+    modeBadge.className    = 'danger-mode-badge mode-ai';
+  } else {
+    modeBadge.textContent  = '📴 OFFLINE';
+    modeBadge.className    = 'danger-mode-badge mode-off';
+  }
+
+  // Score ring
+  const score = Math.min(10, Math.max(1, R.dangerScore || 7));
+  document.getElementById('score-val').textContent = score;
+  const colors = { CRITICAL: '#ff1a2e', HIGH: '#ff8c00', MEDIUM: '#ffd000', LOW: '#00ff88' };
+  const fill   = document.getElementById('score-fill');
+  fill.style.stroke          = colors[R.dangerLevel] || '#ff1a2e';
+  fill.style.filter          = `drop-shadow(0 0 6px ${colors[R.dangerLevel] || '#ff1a2e'}80)`;
+  setTimeout(() => { fill.style.strokeDashoffset = 263 - (score / 10) * 263; }, 150);
+
+  // Summary
+  document.getElementById('result-summary').textContent = R.summary || 'Emergency situation detected.';
+  APP.waveAmp = score * 3;
+
+  // Instruction cards
+  const list   = document.getElementById('instr-list');
+  list.innerHTML = '';
+  const instrs = R.instructions || [];
+  instrs.forEach((instr, i) => {
+    const urgClass = instr.urgencyScore >= 8 ? 'urg-high' : instr.urgencyScore >= 5 ? 'urg-med' : 'urg-low';
+    const div = document.createElement('div');
+    div.className = `instr-card ${urgClass}`;
+    div.style.animationDelay = (i * 120) + 'ms';
+    div.dataset.index = i;
+    div.innerHTML = `
+      <div class="instr-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="instr-body">
+        <div class="instr-text">${escHtml(instr.text)}</div>
+        <div class="instr-meta">
+          <span class="urgency-badge">URG ${instr.urgencyScore}/10</span>
+          <span class="vib-desc">📳 ${escHtml(instr.vibrationPattern || '')}</span>
+          <div class="voice-indicator" id="vi-${i}">
+            <div class="voice-bar"></div><div class="voice-bar"></div>
+            <div class="voice-bar"></div><div class="voice-bar"></div>
+            <span style="margin-left:3px">SPEAKING</span>
+          </div>
+          <span class="tap-hint" id="th-${i}">TAP TO SPEAK + VIBRATE</span>
+        </div>
+      </div>
+    `;
+    div.addEventListener('click', () => vibrateCard(div, instr, i));
+    list.appendChild(div);
+  });
+
+  // Caregiver panel
+  if (APP.cgPhone) {
+    document.getElementById('cg-panel').style.display = 'block';
+    document.getElementById('cg-msg-box').textContent =
+      R.caregiverMessage || 'Emergency alert — please check on your contact immediately.';
+  } else {
+    document.getElementById('cg-panel').style.display = 'none';
+  }
+
+  go('s4');
+  setTimeout(() => { initWave(); initFreqBars(); }, 120);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VIBRATE + SPEAK — INDIVIDUAL CARD
+══════════════════════════════════════════════════════════════ */
+async function vibrateCard(card, instr, idx) {
+  if (APP.isVibrating) return; // prevent overlap
+
+  const pattern = getVibPattern(instr.urgencyScore || 5);
+  doVibrate(pattern);
+
+  // Visual: shake + voice indicator
+  card.classList.add('shaking');
+  document.getElementById('vi-' + idx)?.classList.add('active');
+  document.getElementById('th-' + idx) && (document.getElementById('th-' + idx).style.display = 'none');
+
+  APP.waveAmp = (instr.urgencyScore || 5) * 5;
+  APP.isSpeaking = true;
+  animateFreqBars(true, instr.urgencyScore * 3, true);
+  document.getElementById('voice-badge').classList.add('active');
+  document.getElementById('transmit-badge').classList.add('active');
+
+  // Speak this instruction
+  await speak(instr.text, APP.lang, APP.langCode);
+
+  // Cleanup
+  const vibDuration = pattern.reduce((a,b) => a+b, 0);
+  await new Promise(r => setTimeout(r, Math.max(0, vibDuration - 400)));
+
+  card.classList.remove('shaking');
+  document.getElementById('vi-' + idx)?.classList.remove('active');
+  if (document.getElementById('th-' + idx)) document.getElementById('th-' + idx).style.display = '';
+  APP.isSpeaking = false;
+  APP.waveAmp    = (APP.result?.dangerScore || 7) * 3;
+  animateFreqBars(false, 0, false);
+  document.getElementById('voice-badge').classList.remove('active');
+  document.getElementById('transmit-badge').classList.remove('active');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TRANSMIT ALL — VOICE + VIBRATION SEQUENCE
+══════════════════════════════════════════════════════════════ */
+async function transmitAll() {
+  const instrs = APP.result?.instructions;
+  if (!instrs || !instrs.length) return;
+  if (APP.isVibrating) { toast('Already transmitting — click STOP to cancel', 'warn'); return; }
+
+  APP.isVibrating   = true;
+  APP.stopRequested = false;
+
+  // Show stop button
+  document.getElementById('btn-stop').classList.add('visible');
+  document.getElementById('btn-transmit').style.opacity = '0.5';
+  document.getElementById('transmit-badge').classList.add('active');
+
+  toast(`📳 Transmitting ${instrs.length} instructions via Voice + Vibration`, 'vox');
+
+  // Pre-announce in selected language
+  const announcements = {
+    English: 'Emergency instructions beginning. Follow each instruction carefully.',
+    Bengali: 'জরুরি নির্দেশনা শুরু হচ্ছে। প্রতিটি নির্দেশনা মনোযোগ দিয়ে অনুসরণ করুন।',
+    Hindi:   'आपातकालीन निर्देश शुरू हो रहे हैं। प्रत्येक निर्देश का ध्यानपूर्वक पालन करें।',
+    Spanish: 'Iniciando instrucciones de emergencia. Siga cada instrucción cuidadosamente.',
+    French:  'Instructions d\'urgence en cours. Suivez chaque instruction attentivement.',
+    Arabic:  'بدء تعليمات الطوارئ. اتبع كل تعليمة بعناية.',
+    Chinese: '紧急指令开始。请仔细遵从每条指令。'
+  };
+  const announcement = announcements[APP.lang] || announcements.English;
+  await speak(announcement, APP.lang, APP.langCode);
+  if (APP.stopRequested) { finishTransmit(); return; }
+  await new Promise(r => setTimeout(r, 800));
+
+  for (let i = 0; i < instrs.length; i++) {
+    if (APP.stopRequested) break;
+
+    const instr = instrs[i];
+    const cards = document.querySelectorAll('.instr-card');
+
+    // Remove previous highlights
+    cards.forEach(c => c.classList.remove('active-transmit', 'speaking'));
+
+    // Highlight current card
+    if (cards[i]) {
+      cards[i].classList.add('active-transmit');
+      cards[i].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Show voice indicator
+    document.getElementById('vi-' + i)?.classList.add('active');
+    document.getElementById('voice-badge').classList.add('active');
+    APP.isSpeaking = true;
+
+    // Set wave amplitude based on urgency
+    APP.waveAmp = (instr.urgencyScore || 5) * 5;
+    animateFreqBars(true, instr.urgencyScore * 3, true);
+
+    // 1. SPEAK the instruction
+    await speak(instr.text, APP.lang, APP.langCode);
+    if (APP.stopRequested) break;
+
+    // 2. Short pause
+    await new Promise(r => setTimeout(r, 300));
+    if (APP.stopRequested) break;
+
+    // 3. VIBRATE pattern
+    const pattern = getVibPattern(instr.urgencyScore || 5);
+    if (cards[i]) cards[i].classList.add('shaking');
+    doVibrate(pattern);
+    APP.isSpeaking = false;
+    document.getElementById('vi-' + i)?.classList.remove('active');
+    animateFreqBars(true, instr.urgencyScore * 3, false);
+
+    const vibDuration = pattern.reduce((a,b) => a+b, 0);
+    await new Promise(r => setTimeout(r, vibDuration));
+    if (APP.stopRequested) break;
+
+    if (cards[i]) cards[i].classList.remove('shaking');
+
+    // 4. Gap between instructions
+    await new Promise(r => setTimeout(r, 1200));
+  }
+
+  finishTransmit();
+}
+
+function finishTransmit() {
+  APP.isVibrating   = false;
+  APP.isSpeaking    = false;
+  APP.stopRequested = false;
+
+  stopSpeech();
+  if (navigator.vibrate) navigator.vibrate(0);
+
+  // Clear all card highlights
+  document.querySelectorAll('.instr-card').forEach(c =>
+    c.classList.remove('active-transmit', 'shaking', 'speaking')
+  );
+  document.querySelectorAll('.voice-indicator').forEach(v => v.classList.remove('active'));
+
+  document.getElementById('voice-badge').classList.remove('active');
+  document.getElementById('transmit-badge').classList.remove('active');
+  document.getElementById('btn-stop').classList.remove('visible');
+  document.getElementById('btn-transmit').style.opacity = '';
+
+  APP.waveAmp = (APP.result?.dangerScore || 7) * 3;
+  animateFreqBars(false, 0, false);
+
+  if (!APP.stopRequested) {
+    toast('✓ All instructions transmitted successfully!', 'ok');
+  }
+}
+
+function stopTransmit() {
+  APP.stopRequested = true;
+  stopSpeech();
+  if (navigator.vibrate) navigator.vibrate(0);
+  finishTransmit();
+  toast('■ Transmission stopped', 'warn');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CAREGIVER SMS
+══════════════════════════════════════════════════════════════ */
+function sendSMS() {
+  const msg   = document.getElementById('cg-msg-box').textContent;
+  const phone = APP.cgPhone.replace(/\s+/g, '').replace(/[^+\d]/g, '');
+  window.open(`sms:${phone}?body=${encodeURIComponent(msg)}`, '_blank');
+  toast('Opening SMS app...', 'inf');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESET
+══════════════════════════════════════════════════════════════ */
+function resetApp() {
+  // Stop everything
+  APP.stopRequested = true;
+  stopSpeech();
+  if (navigator.vibrate) navigator.vibrate(0);
+  if (APP.waveRaf)       cancelAnimationFrame(APP.waveRaf);
+  if (APP.freqInterval)  clearInterval(APP.freqInterval);
+
+  APP.waveRaf       = null;
+  APP.result        = null;
+  APP.eType         = '';
+  APP.waveAmp       = 6;
+  APP.wavePhase     = 0;
+  APP.isVibrating   = false;
+  APP.isSpeaking    = false;
+  APP.stopRequested = false;
+  APP.usedApi       = false;
+  waveCtx           = null;
+
+  document.getElementById('alert-text').value = '';
+  document.getElementById('cg-phone').value   = '';
+  document.querySelectorAll('.etype-card').forEach(c => c.classList.remove('selected'));
+
+  document.querySelectorAll('#profile-chips .chip').forEach(c =>
+    c.classList.toggle('selected', c.dataset.val === 'Adult')
+  );
+  APP.profile = 'Adult';
+
+  document.querySelectorAll('#lang-chips .lang-chip').forEach(c =>
+    c.classList.toggle('selected', c.dataset.val === 'English')
+  );
+  APP.lang     = 'English';
+  APP.langCode = 'en-US';
+
+  document.getElementById('offline-banner').classList.remove('active');
+  go('s2');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  go('s1');
+
+  // Preload voices
+  if ('speechSynthesis' in window) {
+    speechSynthesis.getVoices();
+    setTimeout(loadVoices, 500);
+  }
+
+  // Resize canvas handler
+  window.addEventListener('resize', () => {
+    const canvas = document.getElementById('waveCanvas');
+    if (canvas && waveCtx) {
+      canvas.width  = canvas.offsetWidth;
+      canvas.height = 70;
+    }
+  });
+
+  // Check initial online state
+  updateOfflineBanner();
+});
+
+window.addEventListener('online',  () => { updateHeader(); updateOfflineBanner(); toast('✓ Back online — AI features available', 'ok'); });
+window.addEventListener('offline', () => { updateHeader(); document.getElementById('offline-banner').classList.add('active'); toast('📴 Gone offline — Switching to built-in database', 'warn'); });
+</script>
+</body>
+</html>
